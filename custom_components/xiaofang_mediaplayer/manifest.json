@@ -4,5 +4,6 @@
     "documentation": "https://github.com/asmsaifs/ha-xiaofang-mideaplayer",
     "dependencies": [],
     "codeowners": ["@asmsaifs"],
-    "requirements": []
+    "requirements": [],
+    "version": "0.1.0"
 }
