@@ -3,17 +3,24 @@ Support for TTS on a Xiafang Camera
 
 """
 import voluptuous as vol
-
+from homeassistant.components import media_source
 from homeassistant.components.media_player import (
     SUPPORT_PLAY_MEDIA,
     # SUPPORT_VOLUME_SET,
     PLATFORM_SCHEMA,
-    MediaPlayerEntity)
+    MediaPlayerEntity,
+    MediaType
+)
 from homeassistant.const import (
-    CONF_NAME, STATE_OFF, STATE_PLAYING)
+    CONF_NAME, STATE_OFF, STATE_PLAYING
+)
+from homeassistant.components.media_player.browse_media import (
+    async_process_play_media_url,
+)
 import homeassistant.helpers.config_validation as cv
 
 import subprocess
+import asyncio
 
 import logging
 
@@ -21,6 +28,8 @@ import os
 # import re
 # import sys
 # import time
+
+DOMAIN = "xiaofang_mediaplayer"
 
 DEFAULT_NAME = 'Xiaofang Camera Speaker'
 DEFAULT_VOLUME = 0.5
@@ -130,48 +139,31 @@ class XiaofangSpeakerDevice(MediaPlayerEntity):
         # self._vlc.audio_set_volume(int(volume * 100))
         self._volume = volume
 
-    def play_media(self, media_type, media_id, **kwargs):
-        """Send play commmand."""
-        _LOGGER.info('play_media: %s', media_id)
+    async def async_play_media(self, media_type, media_id, **kwargs):
+        """Send the play command."""
+        del kwargs
         self._is_standby = False
 
-        media_file = self._cache_dir + '/' + media_id[media_id.rfind('/') + 1:]
-        volume = str(self._volume * 100)
-
-        pre_silence_file = ""
-        post_silence_file = ""
-
-        media_file_to_play = media_file
-
-        if (self._pre_silence_duration > 0) or (self._post_silence_duration > 0):
-            media_file_to_play = "/tmp/tts_{}".format(os.path.basename(media_file))
-
-            # if (self._pre_silence_duration > 0):
-            #   pre_silence_file = "/tmp/pre_silence.mp3"
-            #   command = "sox -c 1 -r 24000 -n {} synth {} brownnoise gain -50".format(pre_silence_file, self._pre_silence_duration)
-            #   _LOGGER.debug('Executing command: %s', command)
-            #   subprocess.call(command, shell=True)
-
-            # if (self._post_silence_duration > 0):
-            #   post_silence_file = "/tmp/post_silence.mp3"
-            #   command = "sox -c 1 -r 24000 -n {} synth {} brownnoise gain -50".format(post_silence_file, self._post_silence_duration)
-            #   _LOGGER.debug('Executing command: %s', command)
-            #   subprocess.call(command, shell=True)
-
-            command = "sox -t mp3 '{}' -t raw -c 1 -r 32k -e signed-integer -b 16 - vol {} | nc {} {}".format(media_file_to_play, self._volume, self._address, self._port)
+        if media_source.is_media_source_id(media_id):
+            media_type = MediaType.MUSIC
+            play_item = await media_source.async_resolve_media(
+                self.hass, media_id, self.entity_id
+            )
+            media_id = async_process_play_media_url(self.hass, play_item.url)
+        _LOGGER.debug('Media Type: %s', media_type)
+        if media_type in [MediaType.MUSIC, MediaType.PLAYLIST]:
+            command = "sox -t mp3 '{}' -t raw -c 1 -r 32k -e signed-integer -b 16 - vol {} | nc {} {}".format(media_id, self._volume, self._address, self._port)
             _LOGGER.debug('Executing command: %s', command)
-            subprocess.call(command, shell=True)
-
-        # command = "mplayer -ao {} -quiet -channels 2 -volume {} {}".format(sink, volume, media_file_to_play);
-        # _LOGGER.debug('Executing command: %s', command)
-        # subprocess.call(command, shell=True)
-
-        # if (self._pre_silence_duration > 0) or (self._post_silence_duration > 0):
-        #     command = "rm {} {} {}".format(pre_silence_file, media_file_to_play, post_silence_file);
-        #     _LOGGER.debug('Executing command: %s', command)
-        #     subprocess.call(command, shell=True)
-
-        # if self._tracker:
-        #     self._hass.services.call(bluetooth_tracker.DOMAIN, bluetooth_tracker.BLUETOOTH_TRACKER_SERVICE_TURN_ON, None)
-
-        self._is_standby = True
+            process = await asyncio.create_subprocess_shell(
+                command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE)
+            stdout, stderr = await process.communicate()
+            self._is_standby = True
+        else:
+            _LOGGER.error(
+                "Invalid media type %s. Only %s and %s are supported",
+                media_type,
+                MediaType.MUSIC,
+                MediaType.PLAYLIST,
+            )

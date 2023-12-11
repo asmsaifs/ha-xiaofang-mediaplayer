@@ -1,0 +1,7 @@
+{
+    "name": "xiaofang_mediaplayer",
+    "render_readme": true,
+    "domains": [
+        "media_player"
+    ]
+}
