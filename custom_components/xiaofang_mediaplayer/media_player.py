@@ -19,8 +19,9 @@ from homeassistant.components.media_player.browse_media import (
 )
 import homeassistant.helpers.config_validation as cv
 
-import subprocess
+# import subprocess
 import asyncio
+import aiohttp
 
 import logging
 
@@ -37,11 +38,15 @@ DEFAULT_CACHE_DIR = "tts"
 DEFAULT_SILENCE_DURATION = 0.0
 DEFAULT_ADDRESS = ''
 DEFAULT_PORT = 11032
+DEFAULT_START_AUDIO_API = "cgi-bin/scripts?cmd=start&script=30-audio-server"
+DEFAULT_STOP_AUDIO_API = "cgi-bin/scripts?cmd=stop&script=30-audio-server"
 
 # SUPPORT_BLU_SPEAKER = SUPPORT_PLAY_MEDIA | SUPPORT_VOLUME_SET
 
 CONF_ADDRESS = 'ip_address'
 CONF_PORT = 'port'
+CONF_START_AUDIO_API = 'start_audio_api'
+CONF_STOP_AUDIO_API = 'stop_audio_api'
 CONF_VOLUME = 'volume'
 CONF_CACHE_DIR = 'cache_dir'
 CONF_PRE_SILENCE_DURATION = 'pre_silence_duration'
@@ -51,6 +56,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
     vol.Optional(CONF_ADDRESS, default=DEFAULT_ADDRESS): cv.string,
     vol.Optional(CONF_PORT, default=DEFAULT_PORT): cv.positive_int,
+    vol.Optional(CONF_START_AUDIO_API, default=DEFAULT_START_AUDIO_API): cv.string,
+    vol.Optional(CONF_STOP_AUDIO_API, default=DEFAULT_STOP_AUDIO_API): cv.string,
     vol.Optional(CONF_VOLUME, default=DEFAULT_VOLUME):
         vol.All(vol.Coerce(float), vol.Range(min=0, max=1)),
     vol.Optional(CONF_PRE_SILENCE_DURATION, default=DEFAULT_SILENCE_DURATION):
@@ -66,13 +73,15 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
     """Setup the Bluetooth Speaker platform."""
     name = config.get(CONF_NAME)
     address = config.get(CONF_ADDRESS)
+    start_audio_api = config.get(CONF_START_AUDIO_API)
+    stop_audio_api = config.get(CONF_STOP_AUDIO_API)
     port = int(config.get(CONF_PORT))
     volume = float(config.get(CONF_VOLUME))
     pre_silence_duration = float(config.get(CONF_PRE_SILENCE_DURATION))
     post_silence_duration = float(config.get(CONF_POST_SILENCE_DURATION))
     cache_dir = get_tts_cache_dir(hass, config.get(CONF_CACHE_DIR))
 
-    add_devices([XiaofangSpeakerDevice(hass, name, address, port, volume, pre_silence_duration, post_silence_duration, cache_dir)])
+    add_devices([XiaofangSpeakerDevice(hass, name, address, port, start_audio_api, stop_audio_api, volume, pre_silence_duration, post_silence_duration, cache_dir)])
     return True
 
 def get_tts_cache_dir(hass, cache_dir):
@@ -84,7 +93,7 @@ def get_tts_cache_dir(hass, cache_dir):
 class XiaofangSpeakerDevice(MediaPlayerEntity):
     """Representation of a Xiaofang Speaker on the network."""
 
-    def __init__(self, hass, name, address, port, volume, pre_silence_duration, post_silence_duration, cache_dir):
+    def __init__(self, hass, name, address, port, start_audio_api, stop_audio_api, volume, pre_silence_duration, post_silence_duration, cache_dir):
         """Initialize the device."""
         self._hass = hass
         self._name = name
@@ -92,6 +101,8 @@ class XiaofangSpeakerDevice(MediaPlayerEntity):
         self._current = None
         self._address = address
         self._port = port
+        self._start_audio_api = start_audio_api
+        self._stop_audio_api = stop_audio_api
         self._volume = volume
         self._pre_silence_duration = pre_silence_duration
         self._post_silence_duration = post_silence_duration
@@ -152,13 +163,20 @@ class XiaofangSpeakerDevice(MediaPlayerEntity):
             media_id = async_process_play_media_url(self.hass, play_item.url)
         _LOGGER.debug('Media Type: %s', media_type)
         if media_type in [MediaType.MUSIC, MediaType.PLAYLIST]:
-            command = "sox -t mp3 '{}' -t raw -c 1 -r 32k -e signed-integer -b 16 - vol {} | nc {} {}".format(media_id, self._volume, self._address, self._port)
+            command = f"sox -t mp3 '{media_id}' -t raw -c 1 -r 32k -e signed-integer -b 16 - vol {self._volume} | nc {self._address} {self._port}"
             _LOGGER.debug('Executing command: %s', command)
+            async with aiohttp.ClientSession() as session:
+                await session.get(f"http://{self._address}/{self._start_audio_api.lstrip('/')}")
+
             process = await asyncio.create_subprocess_shell(
                 command,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE)
+
             stdout, stderr = await process.communicate()
+            
+            async with aiohttp.ClientSession() as session:
+                await session.get(f"http://{self._address}/{self._stop_audio_api.lstrip('/')}")
             self._is_standby = True
         else:
             _LOGGER.error(

@@ -39,10 +39,9 @@ media_player:
   - platform: xiaofang_mediaplayer
     ip_address: [IP_ADDRESS]   # Required - for example, 192.168.0.x
     port: 11032
-    volume: 0.45                   # Optional - default is 0.5
-#    pre_silence_duration: 1       # Optional - No. of seconds silence before the TTS (default is 0)
-#    post_silence_duration: 0.5    # Optional - No. of seconds silence after the TTS (default is 0)
-#    cache_dir: /tmp/tts           # Optional - make sure it matches the same setting in TTS config
+    volume: 0.45
+    start_audio_api: "cgi-bin/scripts?cmd=start&script=30-audio-server"
+    stop_audio_api: "cgi-bin/scripts?cmd=stop&script=30-audio-server"
 ```
 To test that it's all working, you can use **Developer Tools > Services** in the HA frontend to play a TTS message through your Xoafang camera speaker:
 

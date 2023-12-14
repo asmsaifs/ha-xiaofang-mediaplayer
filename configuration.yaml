@@ -2,5 +2,6 @@ media_player:
   - platform: xiaofang_mediaplayer
     ip_address: "192.168.1.42"
     port: 11032
+    start_audio_api: "cgi-bin/scripts?cmd=start&script=30-audio-server"
+    stop_audio_api: "cgi-bin/scripts?cmd=stop&script=30-audio-server"
     volume: 0.2
-#    cache_dir: /tmp/tts    # Optional - make sure it matches the same setting in TTS config
