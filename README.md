@@ -14,10 +14,14 @@ The flow is something like this:
 
 ## Getting Started
 
-### 1) Install Pulse Audio (with Bluetooth support), MPlayer and SoX (with MP3 support)
+### 1) Install SoX (with MP3 support)
 
 ```
-sudo apt-get install mplayer sox libsox-fmt-mp3
+sudo apt-get install sox libsox-fmt-mp3
+
+or,
+
+apk add sox
 ```
 
 ### 2) Add the TTS Xoafang camera speaker to HA
