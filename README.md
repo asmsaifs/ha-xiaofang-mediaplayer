@@ -26,10 +26,10 @@ apk add sox
 
 ### 2) Add the TTS Xoafang camera speaker to HA
 
-Copy the TTS Xoafang camera speaker component (from this GitHub repo) and save it to your Home Assistant config directory.
+Place the `custom_components` folder in your configuration directory (or add its contents to an existing `custom_components` folder). Alternatively install via [HACS](https://hacs.xyz/).
 
-```
-custom_components/xiaofang_mediaplayer/media_player.py
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=asmsaifs&repository=ha-xiaofang-mediaplayer&category=integration)
+
 ```
 
 ### 3) Start using it in HA
