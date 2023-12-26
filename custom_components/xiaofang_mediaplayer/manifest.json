@@ -1,5 +1,5 @@
 {
-    "domain": "media_player",
+    "domain": "xiaofang_mediaplayer",
     "name": "Xiaofang Camera Speaker",
     "documentation": "https://github.com/asmsaifs/ha-xiaofang-mediaplayer",
     "dependencies": [],
